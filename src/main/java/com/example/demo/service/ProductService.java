@@ -13,7 +13,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class ProductService {
-
+	//all are related to product
     private final ProductRepository productRepository;
 
     public List<ProductResponse> getAllProducts() {
