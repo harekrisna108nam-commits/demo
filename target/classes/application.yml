@@ -3,9 +3,9 @@ spring:
     name: demo
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/postgres
+    url: jdbc:postgresql://database-1.cpy6ayaua0ly.ap-southeast-2.rds.amazonaws.com:5432/postgres
     username: postgres
-    password: anupam@2026
+    password: Haribol2026
     driver-class-name: org.postgresql.Driver
 
   jpa:
