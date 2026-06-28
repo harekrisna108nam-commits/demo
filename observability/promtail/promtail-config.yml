@@ -1,0 +1,60 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+
+  # Scrape all Docker containers that have the label logging=promtail
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["logging=promtail"]
+
+    relabel_configs:
+      # Use container name as the job label
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: "container"
+
+      # Carry over useful Docker metadata
+      - source_labels: ["__meta_docker_container_image"]
+        target_label: "image"
+
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: "service"
+
+    pipeline_stages:
+      # Parse Docker JSON log format
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            time: time
+
+      # Set log timestamp from Docker log time
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+
+      # Set the log line to the parsed output field
+      - output:
+          source: output
+
+      # Extract Spring Boot log level
+      - regex:
+          expression: '^\s*(?P<timestamp>\S+\s+\S+)\s+(?P<level>[A-Z]+)\s+\d+\s+---\s+\[(?P<thread>[^\]]+)\]\s+(?P<logger>\S+)\s*:\s*(?P<message>.*)'
+          source: output
+
+      # Promote extracted log level as a label for filtering in Grafana
+      - labels:
+          level:
+          logger:

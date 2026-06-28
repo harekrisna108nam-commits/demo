@@ -27,6 +27,9 @@ jobs:
       - name: Build Application
         run: mvn clean package -DskipTests
 
+      - name: Run Tests
+        run: mvn test
+
       - name: SonarCloud Analysis
         run: mvn sonar:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
 
@@ -62,34 +65,30 @@ jobs:
             set -e
 
             echo "Logging into ECR..."
-
             aws ecr get-login-password --region ap-southeast-2 | \
             docker login --username AWS --password-stdin \
             191537276755.dkr.ecr.ap-southeast-2.amazonaws.com
 
             echo "Pulling latest image..."
-
             docker pull \
             191537276755.dkr.ecr.ap-southeast-2.amazonaws.com/harekrisna108nam-commits/demo:latest
 
             echo "Stopping old container..."
-
             docker stop demo-app || true
             docker rm demo-app || true
 
             echo "Starting new container..."
-
             docker run -d \
               --restart unless-stopped \
               -p 80:8080 \
               --name demo-app \
+              --label logging=promtail \
               191537276755.dkr.ecr.ap-southeast-2.amazonaws.com/harekrisna108nam-commits/demo:latest
 
             echo "Waiting for application startup..."
             sleep 30
 
             docker ps
-
             curl -f http://localhost:80/actuator/health || exit 1
 
             echo "Deployment Successful"
