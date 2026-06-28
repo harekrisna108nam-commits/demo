@@ -1,0 +1,371 @@
+{
+  "id": null,
+  "uid": "spring-boot-demo",
+  "title": "Spring Boot — Health & Logs",
+  "description": "JVM metrics, HTTP metrics, and application logs for the demo service",
+  "tags": ["spring-boot", "jvm", "logs"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "query": "label_values(jvm_memory_used_bytes, instance)",
+        "refresh": 2,
+        "includeAll": false,
+        "label": "Instance"
+      }
+    ]
+  },
+  "__inputs": [
+    { "name": "DS_PROMETHEUS", "label": "Prometheus", "type": "datasource", "pluginId": "prometheus" },
+    { "name": "DS_LOKI",       "label": "Loki",       "type": "datasource", "pluginId": "loki"       }
+  ],
+  "panels": [
+
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "App Health",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "UP",   "color": "green" } } },
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red"   } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "up{job=\"spring-boot-demo\"}",
+        "legendFormat": "Health"
+      }]
+    },
+
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Uptime",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        }
+      },
+      "targets": [{
+        "expr": "process_uptime_seconds{job=\"spring-boot-demo\",instance=\"$instance\"}",
+        "legendFormat": "Uptime"
+      }]
+    },
+
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "HTTP Requests / min",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqpm",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        }
+      },
+      "targets": [{
+        "expr": "round(sum(rate(http_server_requests_seconds_count{job=\"spring-boot-demo\",instance=\"$instance\"}[1m])) * 60, 1)",
+        "legendFormat": "req/min"
+      }]
+    },
+
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "HTTP Error Rate",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "red",    "value": 0.05 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "sum(rate(http_server_requests_seconds_count{job=\"spring-boot-demo\",instance=\"$instance\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{job=\"spring-boot-demo\",instance=\"$instance\"}[5m]))",
+        "legendFormat": "Error %"
+      }]
+    },
+
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Active DB Connections",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 8 },
+              { "color": "red",    "value": 15 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "hikaricp_connections_active{job=\"spring-boot-demo\",instance=\"$instance\"}",
+        "legendFormat": "Active"
+      }]
+    },
+
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "JVM Threads",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        }
+      },
+      "targets": [{
+        "expr": "jvm_threads_live_threads{job=\"spring-boot-demo\",instance=\"$instance\"}",
+        "legendFormat": "Live Threads"
+      }]
+    },
+
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "HTTP Request Rate (req/sec by status)",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 10 } },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*5..*" }, "properties": [{ "id": "color", "value": { "fixedColor": "red",    "mode": "fixed" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*4..*" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*2..*" }, "properties": [{ "id": "color", "value": { "fixedColor": "green",  "mode": "fixed" } }] }
+        ]
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom" } },
+      "targets": [{
+        "expr": "sum by(status) (rate(http_server_requests_seconds_count{job=\"spring-boot-demo\",instance=\"$instance\"}[1m]))",
+        "legendFormat": "{{status}}"
+      }]
+    },
+
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "HTTP Response Time (p50 / p95 / p99)",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 5 } }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum by(le) (rate(http_server_requests_seconds_bucket{job=\"spring-boot-demo\",instance=\"$instance\"}[5m])))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum by(le) (rate(http_server_requests_seconds_bucket{job=\"spring-boot-demo\",instance=\"$instance\"}[5m])))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum by(le) (rate(http_server_requests_seconds_bucket{job=\"spring-boot-demo\",instance=\"$instance\"}[5m])))", "legendFormat": "p99" }
+      ]
+    },
+
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "JVM Heap Memory",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 15 } }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        { "expr": "jvm_memory_used_bytes{job=\"spring-boot-demo\",instance=\"$instance\",area=\"heap\"}", "legendFormat": "Used" },
+        { "expr": "jvm_memory_committed_bytes{job=\"spring-boot-demo\",instance=\"$instance\",area=\"heap\"}", "legendFormat": "Committed" },
+        { "expr": "jvm_memory_max_bytes{job=\"spring-boot-demo\",instance=\"$instance\",area=\"heap\"}", "legendFormat": "Max" }
+      ]
+    },
+
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "JVM GC Pause Time",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 10 } }
+      },
+      "options": { "tooltip": { "mode": "multi" } },
+      "targets": [{
+        "expr": "rate(jvm_gc_pause_seconds_sum{job=\"spring-boot-demo\",instance=\"$instance\"}[1m])",
+        "legendFormat": "{{action}} {{cause}}"
+      }]
+    },
+
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "HikariCP Connection Pool",
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10 } }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom" } },
+      "targets": [
+        { "expr": "hikaricp_connections_active{job=\"spring-boot-demo\",instance=\"$instance\"}",  "legendFormat": "Active"  },
+        { "expr": "hikaricp_connections_idle{job=\"spring-boot-demo\",instance=\"$instance\"}",    "legendFormat": "Idle"    },
+        { "expr": "hikaricp_connections_pending{job=\"spring-boot-demo\",instance=\"$instance\"}", "legendFormat": "Pending" },
+        { "expr": "hikaricp_connections_max{job=\"spring-boot-demo\",instance=\"$instance\"}",     "legendFormat": "Max"     }
+      ]
+    },
+
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "CPU Usage",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0, "max": 1,
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 0.6  },
+              { "color": "red",    "value": 0.85  }
+            ]
+          }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "process_cpu_usage{job=\"spring-boot-demo\",instance=\"$instance\"}",  "legendFormat": "Process CPU" },
+        { "expr": "system_cpu_usage{job=\"spring-boot-demo\",instance=\"$instance\"}",   "legendFormat": "System CPU"  }
+      ]
+    },
+
+    {
+      "id": 40,
+      "type": "logs",
+      "title": "Application Logs",
+      "gridPos": { "x": 0, "y": 28, "w": 24, "h": 10 },
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [{
+        "expr": "{container=\"demo-app\"}",
+        "legendFormat": "",
+        "maxLines": 500
+      }]
+    },
+
+    {
+      "id": 41,
+      "type": "logs",
+      "title": "ERROR Logs Only",
+      "gridPos": { "x": 0, "y": 38, "w": 24, "h": 8 },
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [{
+        "expr": "{container=\"demo-app\"} |= \"ERROR\"",
+        "legendFormat": "",
+        "maxLines": 200
+      }]
+    },
+
+    {
+      "id": 42,
+      "type": "timeseries",
+      "title": "Log Volume by Level",
+      "gridPos": { "x": 0, "y": 46, "w": 24, "h": 7 },
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 1, "fillOpacity": 20 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "ERROR" }, "properties": [{ "id": "color", "value": { "fixedColor": "red",    "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "WARN"  }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "INFO"  }, "properties": [{ "id": "color", "value": { "fixedColor": "green",  "mode": "fixed" } }] }
+        ]
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        { "expr": "sum(count_over_time({container=\"demo-app\"} |= \"ERROR\" [1m]))", "legendFormat": "ERROR" },
+        { "expr": "sum(count_over_time({container=\"demo-app\"} |= \"WARN\"  [1m]))", "legendFormat": "WARN"  },
+        { "expr": "sum(count_over_time({container=\"demo-app\"} |= \"INFO\"  [1m]))", "legendFormat": "INFO"  }
+      ]
+    }
+
+  ]
+}

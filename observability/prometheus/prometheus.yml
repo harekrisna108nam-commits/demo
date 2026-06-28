@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  # Scrape Prometheus itself
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Scrape Spring Boot actuator/prometheus endpoint
+  - job_name: "spring-boot-demo"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["demo-app:8080"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "demo-app"
